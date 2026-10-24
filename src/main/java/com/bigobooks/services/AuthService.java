@@ -1,7 +1,5 @@
 package com.bigobooks.services;
 
-import java.util.ArrayList;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -105,7 +103,6 @@ public class AuthService {
 		return roleRepository.findByNameIgnoreCase(defaultRoleName).orElseGet(() -> {
 			Role role = new Role();
 			role.setName(defaultRoleName);
-			role.setPermissions(new ArrayList<>());
 			Role saved = roleRepository.save(role);
 			log.info("Rol por defecto {} creado", saved.getName());
 			return saved;

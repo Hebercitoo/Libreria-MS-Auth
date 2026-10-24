@@ -18,6 +18,41 @@ usuarios y emite el token JWT (HS256) que comparten los demas servicios.
 
 El login ademas deja el token en la cookie `token` (path `/`).
 
+## Pruebas con curl
+
+Los siguientes ejemplos usan el gateway en `localhost:8080`. Ejecuta primero
+Eureka, auth y el gateway, y usa el mismo correo y contraseña en ambas llamadas.
+
+### Registro
+
+```bash
+curl -i -X POST http://localhost:8080/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Ana",
+    "lastName": "Pérez",
+    "email": "ana@example.com",
+    "password": "TuClaveSegura123!",
+    "city": "Madrid"
+  }'
+```
+
+Una creación correcta devuelve `201 Created`.
+
+### Login
+
+```bash
+curl -i -X POST http://localhost:8080/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "ana@example.com",
+    "password": "TuClaveSegura123!"
+  }'
+```
+
+Un login correcto devuelve `200 OK`, incluye el JWT en la respuesta y lo envía
+también en la cookie `token`.
+
 ## Requisitos
 
 - Java 21
@@ -75,7 +110,7 @@ sistema `auth.test.full`:
 ## Base de datos
 
 Este servicio **no migra el esquema**: usa las tablas compartidas
-`user_account`, `role`, `permission`, `role_permission` y `user_wishlist`, y
+`user_account`, `role` y `user_wishlist`, y
 corre con `spring.jpa.hibernate.ddl-auto=none` y Liquibase deshabilitado.
 
 `jwt.secret` debe ser el mismo que usan los demas servicios para que el token
