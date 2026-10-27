@@ -41,8 +41,8 @@
 			<groupId>com.bigobooks</groupId>
 			<artifactId>bigobooks</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
-			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/bigobooks-0.0.1-SNAPSHOT.jar</systemPath>
+			<!-- <scope>system</scope>
+			<systemPath>${project.basedir}/lib/bigobooks-0.0.1-SNAPSHOT.jar</systemPath> -->
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -108,7 +108,7 @@
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-crypto</artifactId>
 		</dependency>
-		<!-- JWT (HS256) para el token de sesion compartido entre servicios. -->
+		<!-- JWT (HS512) para el token de sesion compartido entre servicios. -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
