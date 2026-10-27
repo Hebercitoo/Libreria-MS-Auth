@@ -12,12 +12,12 @@ import com.bigobooks.dto.LoginDto;
 import com.bigobooks.dto.RegisterDto;
 import com.bigobooks.entities.auth.Role;
 import com.bigobooks.entities.auth.UserAccount;
-import com.bigobooks.exception.ConflictException;
-import com.bigobooks.exception.UnauthorizedException;
 import com.bigobooks.mappers.UserAccountMapper;
 import com.bigobooks.repositories.RoleRepository;
 import com.bigobooks.repositories.UserAccountRepository;
 import com.bigobooks.security.JwtService;
+import com.bigobooks.util.exception.ConflictException;
+import com.bigobooks.util.exception.UnauthorizedException;
 
 /**
  * Registro y autenticacion de usuarios. Los usuarios nuevos se crean con el rol
