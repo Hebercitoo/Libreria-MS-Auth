@@ -23,18 +23,15 @@ import io.jsonwebtoken.security.Keys;
 public class JwtService {
 
 	private final SecretKey key;
-	private final String roleClaim;
 	private final long expirationMinutes;
 
 	public JwtService(@Value("${jwt.secret}") String secret,
-			@Value("${security.jwt.role-claim}") String roleClaim,
 			@Value("${jwt.expiration-minutes:120}") long expirationMinutes) {
 		byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
 		if (bytes.length < 64) {
 			throw new IllegalStateException("jwt.secret debe tener al menos 64 caracteres para HS512");
 		}
 		this.key = Keys.hmacShaKeyFor(bytes);
-		this.roleClaim = roleClaim;
 		this.expirationMinutes = expirationMinutes;
 	}
 
@@ -44,7 +41,7 @@ public class JwtService {
 		return Jwts.builder()
 				.subject(user.getEmail())
 				.claim("uid", user.getId())
-				.claim(roleClaim, user.getRole() != null ? user.getRole().getName() : null)
+				.claim("role", user.getRole() != null ? user.getRole().getName() : null)
 				.issuedAt(Date.from(now))
 				.expiration(Date.from(expiresAt))
 				.signWith(key, Jwts.SIG.HS512)
