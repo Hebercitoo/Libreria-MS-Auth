@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- cSpell:disable -->
+<configuration>
+	<include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+	<springProperty scope="context" name="logPath" source="auth.log.path" defaultValue="logs"/>
+	<springProperty scope="context" name="logFile" source="auth.log.file" defaultValue="auth-service.log"/>
+	<springProperty scope="context" name="logPattern" source="auth.log.pattern" defaultValue="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{40} - %msg%n"/>
+	<springProperty scope="context" name="levelBigobooks" source="auth.log.level.com.bigobooks" defaultValue="INFO"/>
+	<springProperty scope="context" name="levelRepositories" source="auth.log.level.repositories" defaultValue="DEBUG"/>
+	<springProperty scope="context" name="levelSql" source="auth.log.level.sql" defaultValue="DEBUG"/>
+
+	<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>${CONSOLE_LOG_PATTERN}</pattern>
+		</encoder>
+	</appender>
+
+	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${logPath}/${logFile}</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<fileNamePattern>${logPath}/${logFile}.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+			<maxFileSize>10MB</maxFileSize>
+			<maxHistory>30</maxHistory>
+			<totalSizeCap>200MB</totalSizeCap>
+		</rollingPolicy>
+		<encoder>
+			<pattern>${logPattern}</pattern>
+		</encoder>
+	</appender>
+
+	<root level="${levelBigobooks}">
+		<appender-ref ref="CONSOLE"/>
+		<appender-ref ref="FILE"/>
+	</root>
+
+	<!-- Service: pasos clave de la logica (INFO/ERROR se definen en el codigo) -->
+	<logger name="com.bigobooks" level="${levelBigobooks}"/>
+
+	<!-- Repository: consultas importantes en DEBUG -->
+	<logger name="org.springframework.data.jpa.repository" level="${levelRepositories}"/>
+
+	<!-- SQL: sentencias y parametros -->
+	<logger name="org.hibernate.SQL" level="${levelSql}"/>
+	<logger name="org.hibernate.orm.jdbc.bind" level="${levelSql}"/>
+</configuration>

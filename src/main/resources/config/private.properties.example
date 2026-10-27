@@ -1,0 +1,8 @@
+# cSpell:disable
+db.url=
+db.username=
+db.password=
+
+# Seguridad (secreto de al menos 32 caracteres; debe coincidir con los demas servicios)
+jwt.secret=
+jwt.expiration-minutes=120
