@@ -12,12 +12,14 @@ import org.springframework.stereotype.Component;
 
 import com.bigobooks.entities.auth.UserAccount;
 
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
 /**
- * Emision de tokens JWT (HS512). El token incluye el id y el email del usuario
- * y su rol, de modo que los demas microservicios puedan usarlo mas adelante.
+ * Emision de tokens JWT (HS512). El token incluye el id y el email del usuario,
+ * su rol y, cuando esta asignado, su almacen, de modo que los demas
+ * microservicios puedan usarlo mas adelante.
  */
 @Component
 public class JwtService {
@@ -38,12 +40,16 @@ public class JwtService {
 	public String generateToken(UserAccount user) {
 		Instant now = Instant.now();
 		Instant expiresAt = now.plus(expirationMinutes, ChronoUnit.MINUTES);
-		return Jwts.builder()
+		JwtBuilder builder = Jwts.builder()
 				.subject(user.getEmail())
 				.claim("uid", user.getId())
 				.claim("role", user.getRole() != null ? user.getRole().getName() : null)
 				.issuedAt(Date.from(now))
-				.expiration(Date.from(expiresAt))
+				.expiration(Date.from(expiresAt));
+		if (user.getWarehouseId() != null) {
+			builder.claim("warehouseId", user.getWarehouseId());
+		}
+		return builder
 				.signWith(key, Jwts.SIG.HS512)
 				.compact();
 	}
