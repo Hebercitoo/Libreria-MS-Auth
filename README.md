@@ -1,7 +1,7 @@
 # BigoBooks Auth Service
 
-Microservicio de autenticacion de BigoBooks. Expone registro y login de
-usuarios y emite el token JWT (HS256) que comparten los demas servicios.
+Microservicio de autenticacion de BigoBooks. Expone registro, login y asignacion
+administrativa de roles; emite el token JWT (HS512) que comparten los demas servicios.
 
 - Aplicacion: `auth-service`
 - Puerto: `8084`
@@ -13,8 +13,19 @@ usuarios y emite el token JWT (HS256) que comparten los demas servicios.
 
 | Metodo | Ruta | Descripcion |
 |---|---|---|
-| POST | `/auth/register` | Registra un usuario con el rol por defecto (`READER`) |
+| POST | `/auth/register` | Registra un usuario con el rol por defecto (`CLIENT`) |
 | POST | `/auth/login` | Autentica y devuelve `token`, `tokenType`, `expiresIn` y `user` |
+| PUT | `/auth/users/{userId}/roles` | Reemplaza los roles de un usuario (solo `ADMIN`) |
+
+La asignación administrativa recibe los ids de roles y requiere al menos uno:
+
+```json
+{"roleIds": [1, 2]}
+```
+
+El registro público no acepta roles; asigna `CLIENT` para evitar que un usuario
+se otorgue permisos. Los roles distintos de `CLIENT` y el primer usuario
+administrador deben estar creados mediante el seed operativo.
 
 El login ademas deja el token en la cookie `token` (path `/`).
 
