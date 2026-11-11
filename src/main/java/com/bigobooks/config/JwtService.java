@@ -1,4 +1,4 @@
-package com.bigobooks.security;
+package com.bigobooks.config;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -18,7 +18,7 @@ import io.jsonwebtoken.security.Keys;
 
 /**
  * Emision de tokens JWT (HS512). El token incluye el id y el email del usuario,
- * su rol y, cuando esta asignado, su almacen, de modo que los demas
+ * sus roles y, cuando esta asignado, su almacen, de modo que los demas
  * microservicios puedan usarlo mas adelante.
  */
 @Component
@@ -43,7 +43,7 @@ public class JwtService {
 		JwtBuilder builder = Jwts.builder()
 				.subject(user.getEmail())
 				.claim("uid", user.getId())
-				.claim("role", user.getRole() != null ? user.getRole().getName() : null)
+				.claim("roles", user.getRoles().stream().map(role -> role.getName()).sorted().toList())
 				.issuedAt(Date.from(now))
 				.expiration(Date.from(expiresAt));
 		if (user.getWarehouseId() != null) {
