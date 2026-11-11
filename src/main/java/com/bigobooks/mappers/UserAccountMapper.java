@@ -1,29 +1,36 @@
 package com.bigobooks.mappers;
 
-import org.springframework.stereotype.Component;
+import java.util.List;
+import java.util.Set;
+
+import org.mapstruct.BeanMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 import com.bigobooks.dto.UserAccountDto;
+import com.bigobooks.entities.auth.Role;
 import com.bigobooks.entities.auth.UserAccount;
 
-/**
- * Conversion de UserAccount a su DTO del common (no expone el hash).
- */
-@Component
-public class UserAccountMapper {
+@Mapper(componentModel = "spring")
+public interface UserAccountMapper {
 
-	public UserAccountDto toDto(UserAccount user) {
-		if (user == null) {
-			return null;
-		}
-		UserAccountDto dto = new UserAccountDto();
-		dto.setId(user.getId());
-		dto.setName(user.getName());
-		dto.setLastName(user.getLastName());
-		dto.setEmail(user.getEmail());
-		dto.setCity(user.getCity());
-		dto.setWarehouseId(user.getWarehouseId());
-		dto.setCreatedAt(user.getCreatedAt());
-		dto.setRoleId(user.getRole() != null ? user.getRole().getId() : null);
-		return dto;
+	@BeanMapping(ignoreByDefault = true)
+	@Mapping(source = "id", target = "id")
+	@Mapping(source = "name", target = "name")
+	@Mapping(source = "lastName", target = "lastName")
+	@Mapping(source = "email", target = "email")
+	@Mapping(source = "city", target = "city")
+	@Mapping(source = "warehouseId", target = "warehouseId")
+	@Mapping(source = "createdAt", target = "createdAt")
+	@Mapping(source = "roles", target = "roleIds")
+	@Mapping(source = "roles", target = "roleNames")
+	UserAccountDto toDto(UserAccount user);
+
+	default List<Long> toRoleIds(Set<Role> roles) {
+		return roles == null ? List.of() : roles.stream().map(Role::getId).sorted().toList();
+	}
+
+	default List<String> toRoleNames(Set<Role> roles) {
+		return roles == null ? List.of() : roles.stream().map(Role::getName).sorted().toList();
 	}
 }
