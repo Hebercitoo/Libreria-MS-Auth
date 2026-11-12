@@ -1,5 +1,11 @@
 package com.bigobooks.services;
 
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,13 +16,17 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bigobooks.dto.AuthResponse;
 import com.bigobooks.dto.LoginDto;
 import com.bigobooks.dto.RegisterDto;
+import com.bigobooks.dto.UserAccountDto;
+import com.bigobooks.dto.UserRolesRequestDto;
 import com.bigobooks.entities.auth.Role;
 import com.bigobooks.entities.auth.UserAccount;
 import com.bigobooks.mappers.UserAccountMapper;
 import com.bigobooks.repositories.RoleRepository;
 import com.bigobooks.repositories.UserAccountRepository;
-import com.bigobooks.security.JwtService;
+import com.bigobooks.config.JwtService;
 import com.bigobooks.util.exception.ConflictException;
+import com.bigobooks.util.exception.NotFoundException;
+import com.bigobooks.util.exception.ResourceType;
 import com.bigobooks.util.exception.UnauthorizedException;
 
 /**
@@ -38,7 +48,7 @@ public class AuthService {
 
 	public AuthService(UserAccountRepository userRepository, RoleRepository roleRepository,
 			PasswordEncoder passwordEncoder, JwtService jwtService, UserAccountMapper userAccountMapper,
-			@Value("${security.auth.default-role:READER}") String defaultRoleName) {
+			@Value("${security.auth.default-role:CLIENT}") String defaultRoleName) {
 		this.userRepository = userRepository;
 		this.roleRepository = roleRepository;
 		this.passwordEncoder = passwordEncoder;
@@ -48,7 +58,7 @@ public class AuthService {
 	}
 
 	@Transactional
-	public UserAccount register(RegisterDto request) {
+	public UserAccountDto register(RegisterDto request) {
 		if (request == null) {
 			throw new IllegalArgumentException("Debe indicar los datos del usuario");
 		}
@@ -68,12 +78,25 @@ public class AuthService {
 		user.setCity(requireText(request.getCity(), "city"));
 		user.setWarehouseId(request.getWarehouseId());
 		user.setPasswordHash(passwordEncoder.encode(password));
-		user.setRole(resolveDefaultRole());
+		user.getRoles().add(resolveDefaultRole());
 
 		UserAccount saved = userRepository.save(user);
-		log.info("Usuario {} registrado con rol {}", saved.getEmail(),
-				saved.getRole() != null ? saved.getRole().getName() : "-");
-		return saved;
+		log.info("Usuario {} registrado con roles {}", saved.getEmail(), roleNames(saved.getRoles()));
+		return userAccountMapper.toDto(saved);
+	}
+
+	@Transactional
+	public UserAccountDto assignRoles(Long userId, UserRolesRequestDto request) {
+		if (request == null) {
+			throw new IllegalArgumentException("Debe indicar los roles del usuario");
+		}
+
+		UserAccount user = userRepository.findById(userId)
+				.orElseThrow(() -> NotFoundException.byId(ResourceType.USER, userId));
+		user.setRoles(resolveRoles(request.getRoleIds()));
+		UserAccount saved = userRepository.save(user);
+		log.info("Roles actualizados para usuario {}: {}", saved.getEmail(), roleNames(saved.getRoles()));
+		return userAccountMapper.toDto(saved);
 	}
 
 	@Transactional(readOnly = true)
@@ -107,6 +130,32 @@ public class AuthService {
 			log.info("Rol por defecto {} creado", saved.getName());
 			return saved;
 		});
+	}
+
+	private Set<Role> resolveRoles(Collection<Long> roleIds) {
+		if (roleIds == null || roleIds.isEmpty()) {
+			throw new IllegalArgumentException("Debe asignar al menos un rol");
+		}
+
+		Set<Long> uniqueIds = new LinkedHashSet<>(roleIds);
+		if (uniqueIds.contains(null)) {
+			throw new IllegalArgumentException("Los ids de rol no pueden ser nulos");
+		}
+		if (uniqueIds.size() != roleIds.size()) {
+			throw new IllegalArgumentException("No se pueden repetir ids de rol");
+		}
+
+		List<Role> roles = roleRepository.findAllById(uniqueIds);
+		if (roles.size() != uniqueIds.size()) {
+			Set<Long> foundIds = roles.stream().map(Role::getId).collect(Collectors.toSet());
+			Long missingId = uniqueIds.stream().filter(id -> !foundIds.contains(id)).findFirst().orElseThrow();
+			throw NotFoundException.byId(ResourceType.ROLE, missingId);
+		}
+		return new LinkedHashSet<>(roles);
+	}
+
+	private List<String> roleNames(Set<Role> roles) {
+		return roles.stream().map(Role::getName).sorted().toList();
 	}
 
 	private String requireText(String value, String field) {
