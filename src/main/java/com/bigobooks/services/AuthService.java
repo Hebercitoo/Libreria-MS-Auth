@@ -9,6 +9,9 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,8 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bigobooks.dto.AuthResponse;
 import com.bigobooks.dto.LoginDto;
 import com.bigobooks.dto.RegisterDto;
+import com.bigobooks.dto.RoleDto;
 import com.bigobooks.dto.UserAccountDto;
+import com.bigobooks.dto.UserCreateRequest;
 import com.bigobooks.dto.UserRolesRequestDto;
+import com.bigobooks.dto.UserUpdateRequest;
 import com.bigobooks.entities.auth.Role;
 import com.bigobooks.entities.auth.UserAccount;
 import com.bigobooks.mappers.UserAccountMapper;
@@ -100,6 +106,110 @@ public class AuthService {
 	}
 
 	@Transactional(readOnly = true)
+	public Page<UserAccountDto> listUsers(String search, Integer page, Integer size) {
+		int pageNumber = page == null ? 0 : Math.max(0, page);
+		int pageSize = size == null ? 10 : Math.max(1, Math.min(size, 100));
+		String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
+		PageRequest pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+		Page<UserAccount> users = normalizedSearch == null
+				? userRepository.findAll(pageable)
+				: userRepository.search(normalizedSearch, pageable);
+		return users.map(userAccountMapper::toDto);
+	}
+
+	@Transactional(readOnly = true)
+	public UserAccountDto getUser(Long userId) {
+		return userAccountMapper.toDto(findUser(userId));
+	}
+
+	@Transactional(readOnly = true)
+	public List<RoleDto> listRoles() {
+		return roleRepository.findAll(Sort.by("name")).stream().map(role -> {
+			RoleDto dto = new RoleDto();
+			dto.setId(role.getId());
+			dto.setName(role.getName());
+			dto.setCreatedAt(role.getCreatedAt());
+			return dto;
+		}).toList();
+	}
+
+	@Transactional
+	public UserAccountDto createUser(UserCreateRequest request) {
+		if (request == null) {
+			throw new IllegalArgumentException("Debe indicar los datos del usuario");
+		}
+		String email = requireText(request.getEmail(), "email").toLowerCase();
+		String password = requireText(request.getPassword(), "password");
+		validatePassword(password);
+		if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
+			throw new ConflictException("Ya existe un usuario con el email " + email);
+		}
+
+		UserAccount user = new UserAccount();
+		user.setName(requireText(request.getName(), "name"));
+		user.setLastName(requireText(request.getLastName(), "lastName"));
+		user.setEmail(email);
+		user.setCity(requireText(request.getCity(), "city"));
+		user.setWarehouseId(request.getWarehouseId());
+		user.setPasswordHash(passwordEncoder.encode(password));
+		user.setRoles(resolveRoles(request.getRoleIds()));
+
+		UserAccount saved = userRepository.save(user);
+		log.info("Usuario {} creado por administracion con roles {}", saved.getEmail(), roleNames(saved.getRoles()));
+		return userAccountMapper.toDto(saved);
+	}
+
+	@Transactional
+	public UserAccountDto updateUser(Long userId, UserUpdateRequest request) {
+		if (request == null) {
+			throw new IllegalArgumentException("Debe indicar los datos a actualizar");
+		}
+		UserAccount user = findUser(userId);
+		if (request.getName() != null) {
+			user.setName(requireText(request.getName(), "name"));
+		}
+		if (request.getLastName() != null) {
+			user.setLastName(requireText(request.getLastName(), "lastName"));
+		}
+		if (request.getCity() != null) {
+			user.setCity(requireText(request.getCity(), "city"));
+		}
+		if (request.getWarehouseId() != null) {
+			user.setWarehouseId(request.getWarehouseId());
+		}
+		if (request.getEmail() != null) {
+			String email = requireText(request.getEmail(), "email").toLowerCase();
+			userRepository.findByEmailIgnoreCase(email)
+					.filter(other -> !other.getId().equals(userId))
+					.ifPresent(other -> {
+						throw new ConflictException("Ya existe un usuario con el email " + email);
+					});
+			user.setEmail(email);
+		}
+		if (request.getPassword() != null && !request.getPassword().isBlank()) {
+			validatePassword(request.getPassword());
+			user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+		}
+		if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
+			user.setRoles(resolveRoles(request.getRoleIds()));
+		}
+
+		UserAccount saved = userRepository.save(user);
+		log.info("Usuario {} actualizado por administracion", saved.getEmail());
+		return userAccountMapper.toDto(saved);
+	}
+
+	@Transactional
+	public void deleteUser(Long userId, String currentEmail) {
+		UserAccount user = findUser(userId);
+		if (currentEmail != null && user.getEmail().equalsIgnoreCase(currentEmail)) {
+			throw new ConflictException("No puedes eliminar tu propio usuario");
+		}
+		userRepository.delete(user);
+		log.info("Usuario {} eliminado logicamente por administracion", user.getEmail());
+	}
+
+	@Transactional(readOnly = true)
 	public AuthResponse login(LoginDto request) {
 		if (request == null) {
 			throw new IllegalArgumentException("Debe indicar email y password");
@@ -156,6 +266,20 @@ public class AuthService {
 
 	private List<String> roleNames(Set<Role> roles) {
 		return roles.stream().map(Role::getName).sorted().toList();
+	}
+
+	private UserAccount findUser(Long userId) {
+		if (userId == null) {
+			throw new IllegalArgumentException("El id del usuario es obligatorio");
+		}
+		return userRepository.findById(userId)
+				.orElseThrow(() -> NotFoundException.byId(ResourceType.USER, userId));
+	}
+
+	private void validatePassword(String password) {
+		if (password.length() < 6) {
+			throw new IllegalArgumentException("La contrasena debe tener al menos 6 caracteres");
+		}
 	}
 
 	private String requireText(String value, String field) {
